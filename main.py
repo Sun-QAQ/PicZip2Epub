@@ -13,45 +13,83 @@ def create_epub_from_zip(zip_path, output_epub):
         
         # 设置元数据
         book.set_identifier('id123456')
-        book.set_title('Image Book')
+        book.set_title(os.path.splitext(os.path.basename(zip_path))[0])
         book.set_language('en')
         
         # 假设作者是'Unknown'
         book.add_author('Unknown')
 
-        # 图片章节内容
-        chapter_content = '<html><body>'
+        # 获取ZIP文件中的文件夹结构
+        folders = set()
+        for image in images:
+            folder = os.path.dirname(image)
+            if folder:
+                folders.add(folder)
 
-        # 添加图片到Epub
-        for i, image_name in enumerate(images):
-            # 从ZIP文件中读取图片
-            with zip_ref.open(image_name) as image_file:
-                img_data = image_file.read()
+        # 如果没有文件夹，直接创建一个章节
+        if not folders:
+            chapter_content = '<html><body>'
+            for i, image_name in enumerate(images):
+                # 从ZIP文件中读取图片
+                with zip_ref.open(image_name) as image_file:
+                    img_data = image_file.read()
 
-            # 添加图片到EPUB
-            img_item = epub.EpubImage(
-                uid=f'image{i}',
-                file_name=image_name,
-                media_type=f'image/{image_name.split(".")[-1].lower()}',  # 确定媒体类型
-                content=img_data
-            )
-            book.add_item(img_item)
+                # 添加图片到EPUB
+                img_item = epub.EpubImage(
+                    uid=f'image{i}',
+                    file_name=image_name,
+                    media_type=f'image/{image_name.split(".")[-1].lower()}',  # 确定媒体类型
+                    content=img_data
+                )
+                book.add_item(img_item)
 
-            # 将图片添加到章节内容中
-            chapter_content += f'<img src="{image_name}" alt="Image {i + 1}"/><br/>'
+                # 将图片添加到章节内容中
+                chapter_content += f'<img src="{image_name}" alt="Image {i + 1}"/><br/>'
 
-        chapter_content += '</body></html>'
+            chapter_content += '</body></html>'
 
-        # 创建章节以显示所有图片
-        chapter = epub.EpubHtml(title='Images', file_name='chap_1.xhtml', lang='en')
-        chapter.content = chapter_content
-        book.add_item(chapter)
+            # 创建章节以显示所有图片
+            chapter = epub.EpubHtml(title=os.path.splitext(os.path.basename(zip_path))[0], file_name='chap_1.xhtml', lang='en')
+            chapter.content = chapter_content
+            book.add_item(chapter)
 
-        # 添加章节到书籍对象并同时添加到脊
-        book.spine.append(chapter)  # 确保章节被添加到脊中
-            
+            # 添加章节到书籍对象并同时添加到脊
+            book.spine.append(chapter)  # 确保章节被添加到脊中
+        else:
+            # 如果有文件夹，为每个文件夹创建一个章节
+            for folder in folders:
+                folder_images = sorted([image for image in images if image.startswith(folder + '/')])
+                chapter_content = '<html><body>'
+                for i, image_name in enumerate(folder_images):
+                    # 从ZIP文件中读取图片
+                    with zip_ref.open(image_name) as image_file:
+                        img_data = image_file.read()
+
+                    # 添加图片到EPUB
+                    img_item = epub.EpubImage(
+                        uid=f'image{i}',
+                        file_name=image_name,
+                        media_type=f'image/{image_name.split(".")[-1].lower()}',  # 确定媒体类型
+                        content=img_data
+                    )
+                    book.add_item(img_item)
+
+                    # 将图片添加到章节内容中
+                    chapter_content += f'<img src="{image_name}" alt="Image {i + 1}"/><br/>'
+
+                chapter_content += '</body></html>'
+
+                # 创建章节以显示所有图片
+                chapter_title = os.path.basename(folder) if folder else os.path.splitext(os.path.basename(zip_path))[0]
+                chapter = epub.EpubHtml(title=chapter_title, file_name=f'chap_{folders.index(folder) + 1}.xhtml', lang='en')
+                chapter.content = chapter_content
+                book.add_item(chapter)
+
+                # 添加章节到书籍对象并同时添加到脊
+                book.spine.append(chapter)  # 确保章节被添加到脊中
+
         # 定义目录
-        book.toc = [chapter]
+        book.toc = book.spine
 
         # 添加导航文件
         book.add_item(epub.EpubNcx())
