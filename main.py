@@ -57,6 +57,20 @@ def create_epub_from_zip(zip_path, output_epub):
 
             # 添加章节到书籍对象并同时添加到脊
             book.spine.append(chapter)  # 确保章节被添加到脊中
+
+            # 设置封面
+            if images:
+                cover_image_name = images[0]
+                with zip_ref.open(cover_image_name) as cover_file:
+                    cover_data = cover_file.read()
+                cover_item = epub.EpubImage(
+                    uid='cover',
+                    file_name=cover_image_name,
+                    media_type=f'image/{cover_image_name.split(".")[-1].lower()}',
+                    content=cover_data
+                )
+                book.add_item(cover_item)
+                book.set_cover(cover_image_name, cover_data)
         else:
             # 如果有文件夹，为每个文件夹创建一个章节
             for folder in folders:
@@ -89,6 +103,20 @@ def create_epub_from_zip(zip_path, output_epub):
 
                 # 添加章节到书籍对象并同时添加到脊
                 book.spine.append(chapter)  # 确保章节被添加到脊中
+
+            # 设置封面
+            if images:
+                cover_image_name = images[0]
+                with zip_ref.open(cover_image_name) as cover_file:
+                    cover_data = cover_file.read()
+                cover_item = epub.EpubImage(
+                    uid='cover',
+                    file_name=cover_image_name,
+                    media_type=f'image/{cover_image_name.split(".")[-1].lower()}',
+                    content=cover_data
+                )
+                book.add_item(cover_item)
+                book.set_cover(cover_image_name, cover_data)
 
         # 定义目录
         book.toc = book.spine
