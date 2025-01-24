@@ -3,6 +3,8 @@ from ebooklib import epub
 import os
 import tkinter as tk
 from tkinter import filedialog
+from PIL import Image
+import io
 
 def create_epub_from_zip(zip_path, output_epub):
     # 打开ZIP文件并获取其成员列表
@@ -28,9 +30,12 @@ def create_epub_from_zip(zip_path, output_epub):
             if folder:
                 folders.add(folder)
 
+        gifs = []  # 用于存储生成的GIF文件名
+
         # 如果没有文件夹，直接创建一个章节
         if not folders:
             chapter_content = '<html><body>'
+            images_data = []
             for i, image_name in enumerate(images):
                 # 从ZIP文件中读取图片
                 with zip_ref.open(image_name) as image_file:
@@ -44,6 +49,7 @@ def create_epub_from_zip(zip_path, output_epub):
                     content=img_data
                 )
                 book.add_item(img_item)
+                images_data.append(Image.open(io.BytesIO(img_data)))
 
                 # 将图片添加到章节内容中
                 chapter_content += f'<img src="{image_name}" alt="Image {i + 1}"/><br/>'
@@ -58,24 +64,27 @@ def create_epub_from_zip(zip_path, output_epub):
             # 添加章节到书籍对象并同时添加到脊
             book.spine.append(chapter)  # 确保章节被添加到脊中
 
-            # 设置封面
-            if images:
-                cover_image_name = images[0]
-                with zip_ref.open(cover_image_name) as cover_file:
-                    cover_data = cover_file.read()
-                cover_item = epub.EpubImage(
-                    uid='cover',
-                    file_name=cover_image_name,
-                    media_type=f'image/{cover_image_name.split(".")[-1].lower()}',
-                    content=cover_data
-                )
-                book.add_item(cover_item)
-                book.set_cover(cover_image_name, cover_data)
+            # 生成GIF
+            gif_file_name = 'chap_1.gif'
+            images_data[0].save(gif_file_name, save_all=True, append_images=images_data[1:], duration=50, loop=0)
+            gifs.append(gif_file_name)
+
+            # 添加GIF到EPUB
+            with open(gif_file_name, 'rb') as gif_file:
+                gif_data = gif_file.read()
+            gif_item = epub.EpubImage(
+                uid='gif1',
+                file_name=gif_file_name,
+                media_type='image/gif',
+                content=gif_data
+            )
+            book.add_item(gif_item)
         else:
             # 如果有文件夹，为每个文件夹创建一个章节
             for folder in folders:
                 folder_images = sorted([image for image in images if image.startswith(folder + '/')])
                 chapter_content = '<html><body>'
+                images_data = []
                 for i, image_name in enumerate(folder_images):
                     # 从ZIP文件中读取图片
                     with zip_ref.open(image_name) as image_file:
@@ -89,6 +98,7 @@ def create_epub_from_zip(zip_path, output_epub):
                         content=img_data
                     )
                     book.add_item(img_item)
+                    images_data.append(Image.open(io.BytesIO(img_data)))
 
                     # 将图片添加到章节内容中
                     chapter_content += f'<img src="{image_name}" alt="Image {i + 1}"/><br/>'
@@ -104,19 +114,48 @@ def create_epub_from_zip(zip_path, output_epub):
                 # 添加章节到书籍对象并同时添加到脊
                 book.spine.append(chapter)  # 确保章节被添加到脊中
 
-            # 设置封面
-            if images:
-                cover_image_name = images[0]
-                with zip_ref.open(cover_image_name) as cover_file:
-                    cover_data = cover_file.read()
-                cover_item = epub.EpubImage(
-                    uid='cover',
-                    file_name=cover_image_name,
-                    media_type=f'image/{cover_image_name.split(".")[-1].lower()}',
-                    content=cover_data
+                # 生成GIF
+                gif_file_name = f'chap_{folders.index(folder) + 1}.gif'
+                images_data[0].save(gif_file_name, save_all=True, append_images=images_data[1:], duration=50, loop=0)
+                gifs.append(gif_file_name)
+
+                # 添加GIF到EPUB
+                with open(gif_file_name, 'rb') as gif_file:
+                    gif_data = gif_file.read()
+                gif_item = epub.EpubImage(
+                    uid=f'gif{folders.index(folder) + 1}',
+                    file_name=gif_file_name,
+                    media_type='image/gif',
+                    content=gif_data
                 )
-                book.add_item(cover_item)
-                book.set_cover(cover_image_name, cover_data)
+                book.add_item(gif_item)
+
+        # 设置封面
+        if images:
+            cover_image_name = images[0]
+            with zip_ref.open(cover_image_name) as cover_file:
+                cover_data = cover_file.read()
+            cover_item = epub.EpubImage(
+                uid='cover',
+                file_name=cover_image_name,
+                media_type=f'image/{cover_image_name.split(".")[-1].lower()}',
+                content=cover_data
+            )
+            book.add_item(cover_item)
+            book.set_cover(cover_image_name, cover_data)
+
+        # 创建最后一个章节以显示所有GIF
+        last_chapter_content = '<html><body>'
+        for gif_file_name in gifs:
+            last_chapter_content += f'<img src="{gif_file_name}" alt="GIF"/><br/>'
+        last_chapter_content += '</body></html>'
+
+        last_chapter = epub.EpubHtml(title='All GIFs', file_name='chap_all_gifs.xhtml', lang='en')
+        last_chapter.content = last_chapter_content
+        book.add_item(last_chapter)
+
+        # 添加最后一个章节到书籍对象并同时添加到脊
+        book.spine.append(last_chapter)  # 确保章节被添加到脊中
 
         # 定义目录
         book.toc = book.spine
