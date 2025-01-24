@@ -1,6 +1,8 @@
 import zipfile
 from ebooklib import epub
 import os
+import tkinter as tk
+from tkinter import filedialog
 
 def create_epub_from_zip(zip_path, output_epub):
     # 打开ZIP文件并获取其成员列表
@@ -98,7 +100,26 @@ def create_epub_from_zip(zip_path, output_epub):
         # 写入EPUB文件
         epub.write_epub(output_epub, book)
 
-# 使用函数
-zip_path = "D:\Downloads\\126419240_ugoira600x600.zip"  # 替换为你的ZIP文件路径
-output_epub = '126419240_ugoira600x600.epub'      # 输出EPUB文件名
-create_epub_from_zip(zip_path, output_epub)
+def main():
+    # 创建Tkinter根窗口
+    root = tk.Tk()
+    root.withdraw()  # 隐藏主窗口
+
+    # 弹出文件选择对话框
+    zip_path = filedialog.askopenfilename(title="选择ZIP文件", filetypes=[("ZIP files", "*.zip")])
+    if not zip_path:
+        print("未选择文件，程序退出。")
+        return
+
+    # 弹出保存文件对话框
+    output_epub = filedialog.asksaveasfilename(title="保存EPUB文件", defaultextension=".epub", filetypes=[("EPUB files", "*.epub")])
+    if not output_epub:
+        print("未选择保存路径，程序退出。")
+        return
+
+    # 调用创建EPUB函数
+    create_epub_from_zip(zip_path, output_epub)
+    print(f"EPUB文件已保存到 {output_epub}")
+
+if __name__ == "__main__":
+    main()
